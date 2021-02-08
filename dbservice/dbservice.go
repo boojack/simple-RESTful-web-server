@@ -4,21 +4,25 @@ import (
 	"database/sql"
 	"fmt"
 
-	// mysql driver
-	_ "github.com/go-sql-driver/mysql"
+	// pg driver
+	_ "github.com/lib/pq"
 )
 
 // DB db client
 var DB *sql.DB = nil
 
 func init() {
-	db, err := sql.Open("mysql", "root:root@/mine_flomo")
+	connStr := "postgres://postgres:root@localhost/flomo?sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
+
 	if err != nil {
 		fmt.Println("connect failed")
 		panic(err.Error())
 	} else {
 		DB = db
-		fmt.Println("connect succeed")
+		fmt.Println("connect to mysql succeed")
 	}
-	fmt.Println("db service inited")
+
+	// NOTE: 项目运行时无需 close
+	// defer DB.Close()
 }

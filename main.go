@@ -2,12 +2,18 @@ package main
 
 import (
 	"log"
+	"neosmemo/backend/dbservice"
 	"neosmemo/backend/router"
 	"net/http"
 )
 
 func init() {
-	// do nth
+	if router.Router == nil {
+		panic("router init failed")
+	}
+	if dbservice.DB == nil {
+		panic("dbservice init failed")
+	}
 }
 
 func main() {
