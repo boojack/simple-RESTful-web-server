@@ -20,7 +20,7 @@ func init() {
 		panic(err.Error())
 	} else {
 		DB = db
-		fmt.Println("connect to mysql succeed")
+		fmt.Println("connect to postgres succeed")
 	}
 
 	// NOTE: 项目运行时无需 close

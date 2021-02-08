@@ -17,7 +17,8 @@ func init() {
 }
 
 func main() {
-	router := router.Router
+	r := router.Router
+	r.ServeFiles("/web/*filepath", http.Dir("./static/"))
 
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
