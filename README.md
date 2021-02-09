@@ -1,7 +1,7 @@
-# A simplest RESTful web server with go
+# A simple RESTful web server with go
 
-## Used mod
+Only used 3 modules:
 
-- httprouter(github.com/julienschmidt/httprouter): to simply the handler logic
-- uuid(github.com/google/uuid): to generate the uuid
-- pqsql-driver(github.com/lib/pq): to driver the postgresql
+1. httprouter(github.com/julienschmidt/httprouter): to simply the http handler logic
+2. uuid(github.com/google/uuid): to generate the uuid
+3. pqsql-driver(github.com/lib/pq): to driver the postgresql
