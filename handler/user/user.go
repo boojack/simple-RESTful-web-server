@@ -3,7 +3,7 @@ package user
 import (
 	"encoding/json"
 	"fmt"
-	"neosmemo/backend/dbservice"
+	"neosmemo/backend/helper"
 	"neosmemo/backend/model"
 	"neosmemo/backend/util"
 	"net/http"
@@ -20,11 +20,10 @@ func GetAllUser(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	users := []model.User{}
 	user := model.User{}
 
-	rows, err := dbservice.DB.Query("SELECT * FROM users")
+	rows, err := helper.DBService.Query("SELECT * FROM users")
 
 	for rows.Next() {
-		// TODO: 顺序必须和数据库字段定义的顺序一致。如何抽象？
-		rows.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt, user.UpdatedAt)
+		rows.Scan(util.IterStructFieldAddr(&user)...)
 		users = append(users, user)
 	}
 
@@ -36,12 +35,16 @@ func GetAllUser(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	json.NewEncoder(w).Encode(&users)
 }
 
-// GetUserByID just for test
-func GetUserByID(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
-	id := ps.ByName("id")
-	user := model.User{}
+// GetMyUserInfo check for user login status
+func GetMyUserInfo(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	userID, err := util.GetKeyValueFromCookie("user_id", r)
+	if err != nil {
+		panic("You have not sign in")
+	}
 
-	err := dbservice.DB.QueryRow("SELECT * FROM users WHERE id = $1", id).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt, user.UpdatedAt)
+	user := model.User{}
+	row := helper.DBService.QueryRow("SELECT * FROM users WHERE id = $1", userID)
+	err = row.Scan(util.IterStructFieldAddr(&user)...)
 
 	if err != nil {
 		// no rows in result set
@@ -58,14 +61,14 @@ func GetUserInfo(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
 	id := ps.ByName("id")
 	user := model.User{}
 
-	err := dbservice.DB.QueryRow("SELECT * FROM users WHERE id = $1", id).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.CreatedAt, user.UpdatedAt)
+	row := helper.DBService.QueryRow("SELECT * FROM users WHERE id = $1", id)
+	err := row.Scan(util.IterStructFieldAddr(&user)...)
 
 	if err != nil {
 		// no rows in result set
 		fmt.Println(err.Error())
 	}
 
-	fmt.Fprintf(w, "hello, %#v!\n", &user)
 	json.NewEncoder(w).Encode(&user)
 }
 
@@ -113,16 +116,14 @@ func DoSignUp(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	err := decoder.Decode(&t)
 
 	if err != nil {
-		// request data type error
-		fmt.Println(err.Error())
+		fmt.Println("request data type error", err.Error())
+		panic("request data type error")
 	}
 
 	usenameUsable := checkUsernameUsable(t.Username)
 
 	if !usenameUsable {
-		fmt.Println(t.Username, "不可用")
-		// TODO: 错误处理
-		return
+		panic(t.Username + " is unusable")
 	}
 
 	user := model.User{
@@ -136,58 +137,64 @@ func DoSignUp(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	sqlStatement := `
 		INSERT INTO users (id, username, password, email, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)`
-	_, err = dbservice.DB.Exec(sqlStatement, user.ID, user.Username, user.Password, user.Email, user.CreatedAt, user.UpdatedAt)
+		VALUES ($1, $2, $3, $4, $5, $6)`
+	_, err = helper.DBService.Exec(sqlStatement, util.IterStructFieldValue(&user)...)
 
 	if err != nil {
 		fmt.Println(err.Error())
+		panic("Sign in failed, plz check your password")
 	}
 
-	expiration := time.Now().Add(365 * 24 * time.Hour)
-	cookie := http.Cookie{Name: "userid", Value: user.ID, Expires: expiration}
-	http.SetCookie(w, &cookie)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "user_id",
+		Value:    user.ID,
+		Path:     "/",
+		Secure:   false,
+		HttpOnly: true,
+		Expires:  time.Now().Add(365 * 24 * time.Hour),
+	})
+	json.NewEncoder(w).Encode(&user)
 }
 
 // DoSignIn post
-func DoSignIn(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func DoSignIn(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	t := struct {
 		Username string
 		Password string
 	}{}
-	decoder := json.NewDecoder(req.Body)
+	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&t)
 
 	if err != nil {
-		// request data type error
-		fmt.Println(err.Error())
+		fmt.Println("request data type err", err.Error())
+		panic("request data type error")
 	}
 
-	userID := ""
-	err = dbservice.DB.QueryRow("SELECT id FROM users WHERE username = $1 AND password = $2", t.Username, t.Password).Scan(&userID)
+	user := model.User{}
+	row := helper.DBService.QueryRow("SELECT * FROM users WHERE username = $1 AND password = $2", t.Username, t.Password)
+	err = row.Scan(util.IterStructFieldAddr(&user)...)
 
-	if err != nil || userID == "" {
-		// fmt.Println(err.Error())
-		fmt.Println("Sign in failed")
-		return
+	if err != nil || user.ID == "" {
+		fmt.Println("Sign in failed", err.Error())
+		panic("Sign in failed, plz check your password")
 	}
 
-	expiration := time.Now().Add(365 * 24 * time.Hour)
-	cookie := http.Cookie{Name: "userid", Value: userID, Expires: expiration}
-	http.SetCookie(w, &cookie)
-
-	// TODO:
-	user := model.User{
-		ID:       userID,
-		Username: t.Username,
-	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "user_id",
+		Value:    user.ID,
+		Path:     "/",
+		Secure:   false,
+		HttpOnly: true,
+		Expires:  time.Now().Add(365 * 24 * time.Hour),
+	})
 	json.NewEncoder(w).Encode(&user)
 }
 
 func checkUsernameUsable(u string) bool {
 	count := 1
-	err := dbservice.DB.QueryRow("SELECT COUNT(*) FROM users WHERE username = $1", u).Scan(&count)
+	err := helper.DBService.QueryRow("SELECT COUNT(*) FROM users WHERE username = $1", u).Scan(&count)
 
 	if err != nil {
 		fmt.Println(err.Error())

@@ -3,6 +3,7 @@ package model
 import "time"
 
 // User user
+// NOTE: 注意属性的先后顺序务必和数据库字段顺序保持一致
 type User struct {
 	ID        string    `json:"id"`
 	Username  string    `json:"username"`

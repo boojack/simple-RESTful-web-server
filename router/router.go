@@ -8,27 +8,25 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// Router com
+// Router router
 var Router *httprouter.Router = nil
 
 // NOTE: 在这里注册路由
 func init() {
 	Router = httprouter.New()
 
-	// NOTE: 中间件的实现方式
-	Router.GET("/hello/:id", handler.Middleware(user.GetUserByID, handler.MiddlewareConfig{Cors: true, JSON: true}))
-
 	// user about
-	Router.GET("/api/user/all", user.GetAllUser)
-	Router.POST("/api/user/check", user.CheckUsernameUsed)
-	Router.POST("/api/user/info", user.GetUserByID)
-	Router.POST("/api/user/signup", user.DoSignUp)
-	Router.POST("/api/user/signin", user.DoSignIn)
+	Router.GET("/api/user/me", handler.Middleware(user.GetMyUserInfo, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	Router.POST("/api/user/signup", handler.Middleware(user.DoSignUp, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	Router.POST("/api/user/signin", handler.Middleware(user.DoSignIn, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	Router.POST("/api/user/check", handler.Middleware(user.CheckUsernameUsed, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	// just for test
+	Router.GET("/api/user/all", handler.Middleware(user.GetAllUser, handler.MiddlewareConfig{Cors: true, JSON: true}))
 
 	// memo about
-	Router.GET("/api/memo/", memo.GetAllMemos)
-	Router.GET("/api/memo/:id", memo.GetMemoByID)
-	Router.POST("/api/memo/new", memo.CreateMemo)
-	Router.POST("/api/memo/update", memo.UpdateMemo)
-	Router.POST("/api/memo/delete", memo.DeleteMemo)
+	// Router.GET("/api/:id/", memo.GetMemoByID)
+	Router.GET("/api/memo/all", handler.Middleware(memo.GetAllMemos, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	Router.POST("/api/memo/new", handler.Middleware(memo.CreateMemo, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	Router.POST("/api/memo/update", handler.Middleware(memo.UpdateMemo, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	Router.POST("/api/memo/delete", handler.Middleware(memo.DeleteMemo, handler.MiddlewareConfig{Cors: true, JSON: true}))
 }

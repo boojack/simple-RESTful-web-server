@@ -2,10 +2,11 @@
 
 ## TODO
 
-- 完善逻辑
 - cookie and session
-- redis
+- 完善逻辑
 - 错误处理
+- 操作日志
+- redis
 
 ## 用到的 lib
 
