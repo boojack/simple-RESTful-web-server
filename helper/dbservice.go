@@ -1,4 +1,4 @@
-package dbservice
+package helper
 
 import (
 	"database/sql"
@@ -8,8 +8,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// DB db client
-var DB *sql.DB = nil
+// DBService db client
+var DBService *sql.DB = nil
 
 func init() {
 	connStr := "postgres://postgres:root@localhost/flomo?sslmode=disable"
@@ -19,10 +19,12 @@ func init() {
 		fmt.Println("connect failed")
 		panic(err.Error())
 	} else {
-		DB = db
+		DBService = db
 		fmt.Println("connect to postgres succeed")
 	}
 
-	// NOTE: 项目运行时无需 close
-	// defer DB.Close()
+	// NOTE: As the official notes:
+	// It is rare to Close a DB, as the DB handle is meant to be
+	// long-lived and shared between many goroutines.
+	// defer DBService.Close()
 }
