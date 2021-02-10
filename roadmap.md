@@ -4,6 +4,6 @@
 
 - [x] 完善逻辑
 - [x] 错误处理
-- [ ] cookie & session
+- [x] cookie & session
 - [ ] redis
 - [ ] logger
