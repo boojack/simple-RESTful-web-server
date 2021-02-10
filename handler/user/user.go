@@ -3,6 +3,7 @@ package user
 import (
 	"encoding/json"
 	"fmt"
+	"neosmemo/backend/handler"
 	"neosmemo/backend/helper"
 	"neosmemo/backend/model"
 	"neosmemo/backend/util"
@@ -32,36 +33,47 @@ func GetAllUser(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 		fmt.Println(err.Error())
 	}
 
-	json.NewEncoder(w).Encode(&users)
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "get all users succeed",
+		Succeed:       true,
+		Data:          &users,
+	})
 }
 
 // GetMyUserInfo check for user login status
 func GetMyUserInfo(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	userID, err := util.GetKeyValueFromCookie("user_id", r)
-	if err != nil {
+	userID, ok := helper.GetUserIDFromSession(r)
+	if !ok {
 		panic("You have not sign in")
 	}
 
 	user := model.User{}
 	row := helper.DBService.QueryRow("SELECT * FROM users WHERE id = $1", userID)
-	err = row.Scan(util.IterStructFieldAddr(&user)...)
+	err := row.Scan(util.IterStructFieldAddr(&user)...)
 
 	if err != nil {
-		// no rows in result set
-		fmt.Println(err.Error())
+		panic("no result set")
 	}
 
-	json.NewEncoder(w).Encode(&user)
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "get userinfo succeed",
+		Succeed:       true,
+		Data:          &user,
+	})
 }
 
-// GetUserInfo just for test
-func GetUserInfo(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+// UpdateInfo TODO: just for test
+func UpdateInfo(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	userID, ok := helper.GetUserIDFromSession(r)
+	if !ok {
+		panic("You have not sign in")
+	}
 
-	id := ps.ByName("id")
 	user := model.User{}
 
-	row := helper.DBService.QueryRow("SELECT * FROM users WHERE id = $1", id)
+	row := helper.DBService.QueryRow("SELECT * FROM users WHERE id = $1", userID)
 	err := row.Scan(util.IterStructFieldAddr(&user)...)
 
 	if err != nil {
@@ -74,8 +86,6 @@ func GetUserInfo(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
 
 // CheckUsernameUsed check Username was Used
 func CheckUsernameUsed(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
 	t := struct {
 		Username string
 	}{}
@@ -101,13 +111,16 @@ func CheckUsernameUsed(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		usable: usenameUsable,
 	}
 
-	json.NewEncoder(w).Encode(data)
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "succeed",
+		Succeed:       true,
+		Data:          &data,
+	})
 }
 
 // DoSignUp post
 func DoSignUp(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
 	t := struct {
 		Username string
 		Password string
@@ -120,9 +133,9 @@ func DoSignUp(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		panic("request data type error")
 	}
 
-	usenameUsable := checkUsernameUsable(t.Username)
+	isUsable := checkUsernameUsable(t.Username)
 
-	if !usenameUsable {
+	if !isUsable {
 		panic(t.Username + " is unusable")
 	}
 
@@ -142,24 +155,36 @@ func DoSignUp(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	if err != nil {
 		fmt.Println(err.Error())
-		panic("Sign in failed, plz check your password")
+		panic("Sign up failed, redo later plz")
+	}
+
+	var sessionID string = util.GenUUID()
+	helper.SessionManager[sessionID] = helper.Session{
+		UserID:    user.ID,
+		SessionID: sessionID,
+		CreatedAt: time.Now(),
+		ExpiredAt: time.Now().Add(365 * 24 * time.Hour),
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "user_id",
-		Value:    user.ID,
+		Name:     "session_id",
+		Value:    sessionID,
 		Path:     "/",
 		Secure:   false,
 		HttpOnly: true,
 		Expires:  time.Now().Add(365 * 24 * time.Hour),
 	})
-	json.NewEncoder(w).Encode(&user)
+
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "sign up succeed",
+		Succeed:       true,
+		Data:          &user,
+	})
 }
 
 // DoSignIn post
 func DoSignIn(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
 	t := struct {
 		Username string
 		Password string
@@ -181,15 +206,47 @@ func DoSignIn(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		panic("Sign in failed, plz check your password")
 	}
 
+	var sessionID string = util.GenUUID()
+	helper.SessionManager[sessionID] = helper.Session{
+		UserID:    user.ID,
+		SessionID: sessionID,
+		CreatedAt: time.Now(),
+		ExpiredAt: time.Now().Add(365 * 24 * time.Hour),
+	}
+
 	http.SetCookie(w, &http.Cookie{
-		Name:     "user_id",
-		Value:    user.ID,
+		Name:     "session_id",
+		Value:    sessionID,
 		Path:     "/",
 		Secure:   false,
 		HttpOnly: true,
 		Expires:  time.Now().Add(365 * 24 * time.Hour),
 	})
-	json.NewEncoder(w).Encode(&user)
+
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "sign in succeed",
+		Succeed:       true,
+		Data:          &user,
+	})
+}
+
+// DoSignOut post
+func DoSignOut(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Secure:   false,
+		HttpOnly: true,
+	})
+
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "sign out succeed",
+		Succeed:       true,
+	})
 }
 
 func checkUsernameUsable(u string) bool {

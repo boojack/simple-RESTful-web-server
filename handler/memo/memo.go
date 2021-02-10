@@ -3,6 +3,7 @@ package memo
 import (
 	"encoding/json"
 	"fmt"
+	"neosmemo/backend/handler"
 	"neosmemo/backend/helper"
 	"neosmemo/backend/model"
 	"neosmemo/backend/util"
@@ -13,9 +14,9 @@ import (
 
 // GetAllMemos get
 func GetAllMemos(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	userID, err := util.GetKeyValueFromCookie("user_id", r)
-	if err != nil {
-		panic("you have to sign in first")
+	userID, ok := helper.GetUserIDFromSession(r)
+	if !ok {
+		panic("You have not sign in")
 	}
 
 	memos := []model.Memo{}
@@ -27,13 +28,18 @@ func GetAllMemos(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			memos = append(memos, memo)
 		}
 	} else {
-		// handle db error
+		panic("fetch failed, try later plz")
 	}
 
-	json.NewEncoder(w).Encode(&memos)
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "memo get all succeed",
+		Succeed:       true,
+		Data:          &memos,
+	})
 }
 
-// GetMemoByID just for test
+// GetMemoByID do not need user session
 func GetMemoByID(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
 	id := ps.ByName("id")
 	memo := model.Memo{}
@@ -45,14 +51,19 @@ func GetMemoByID(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
 		fmt.Println(err.Error())
 	}
 
-	json.NewEncoder(w).Encode(&memo)
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "memo get succeed",
+		Succeed:       true,
+		Data:          &memo,
+	})
 }
 
 // CreateMemo post
 func CreateMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	userID, err := util.GetKeyValueFromCookie("user_id", r)
-	if err != nil {
-		panic("you have to sign in first")
+	userID, ok := helper.GetUserIDFromSession(r)
+	if !ok {
+		panic("You have not sign in")
 	}
 
 	t := struct {
@@ -81,14 +92,19 @@ func CreateMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		panic("create memo error")
 	}
 
-	json.NewEncoder(w).Encode(&memo)
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "memo create succeed",
+		Succeed:       true,
+		Data:          &memo,
+	})
 }
 
 // UpdateMemo post
 func UpdateMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	userID, err := util.GetKeyValueFromCookie("user_id", r)
-	if err != nil {
-		panic("you have to sign in first")
+	userID, ok := helper.GetUserIDFromSession(r)
+	if !ok {
+		panic("You have not sign in")
 	}
 
 	t := struct {
@@ -96,7 +112,6 @@ func UpdateMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Content string
 	}{}
 	decoder := json.NewDecoder(r.Body)
-
 	if err := decoder.Decode(&t); err != nil {
 		panic("request data type error")
 	}
@@ -106,19 +121,24 @@ func UpdateMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		SET content = $1, updated_at = $2
 		WHERE id = $3 AND user_id = $4
 	`
-
-	if _, err := helper.DBService.Exec(sqlStatement, t.Content, util.GetNowTime(), t.ID, userID); err != nil {
+	_, err := helper.DBService.Exec(sqlStatement, t.Content, util.GetNowTime(), t.ID, userID)
+	if err != nil {
 		panic("update memo error")
 	}
 
-	json.NewEncoder(w).Encode(&t)
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "memo update succeed",
+		Succeed:       true,
+		Data:          &t,
+	})
 }
 
 // DeleteMemo post
 func DeleteMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	userID, err := util.GetKeyValueFromCookie("user_id", r)
-	if err != nil {
-		panic("you have to sign in first")
+	userID, ok := helper.GetUserIDFromSession(r)
+	if !ok {
+		panic("You have not sign in")
 	}
 
 	t := struct {
@@ -135,9 +155,15 @@ func DeleteMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		WHERE id = $1 AND user_id = $2
 	`
 
-	if _, err := helper.DBService.Exec(sqlStatement, t.ID, userID); err != nil {
+	_, err := helper.DBService.Exec(sqlStatement, t.ID, userID)
+	if err != nil {
 		panic("delete memo error")
 	}
 
-	json.NewEncoder(w).Encode(&t)
+	json.NewEncoder(w).Encode(&handler.Response{
+		StatusCode:    http.StatusOK,
+		StatusMessage: "memo delete succeed",
+		Succeed:       true,
+		Data:          &t,
+	})
 }

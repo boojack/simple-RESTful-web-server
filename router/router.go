@@ -19,6 +19,8 @@ func init() {
 	Router.GET("/api/user/me", handler.Middleware(user.GetMyUserInfo, handler.MiddlewareConfig{Cors: true, JSON: true}))
 	Router.POST("/api/user/signup", handler.Middleware(user.DoSignUp, handler.MiddlewareConfig{Cors: true, JSON: true}))
 	Router.POST("/api/user/signin", handler.Middleware(user.DoSignIn, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	Router.POST("/api/user/signout", handler.Middleware(user.DoSignOut, handler.MiddlewareConfig{Cors: true, JSON: true}))
+	Router.POST("/api/user/update", handler.Middleware(user.UpdateInfo, handler.MiddlewareConfig{Cors: true, JSON: true}))
 	Router.POST("/api/user/check", handler.Middleware(user.CheckUsernameUsed, handler.MiddlewareConfig{Cors: true, JSON: true}))
 	// just for test
 	Router.GET("/api/user/all", handler.Middleware(user.GetAllUser, handler.MiddlewareConfig{Cors: true, JSON: true}))
