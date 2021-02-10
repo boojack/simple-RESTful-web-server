@@ -59,3 +59,17 @@ func ErrorHandler(w http.ResponseWriter, message string) {
 
 	json.NewEncoder(w).Encode(&errorRes)
 }
+
+// NotFoundHandler NotFoundHandler
+func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
+	errorRes := Response{
+		StatusCode:    http.StatusNotFound,
+		StatusMessage: "Not found",
+		Succeed:       false,
+	}
+
+	json.NewEncoder(w).Encode(&errorRes)
+}

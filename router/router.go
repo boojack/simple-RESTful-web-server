@@ -4,6 +4,7 @@ import (
 	"neosmemo/backend/handler"
 	"neosmemo/backend/handler/memo"
 	"neosmemo/backend/handler/user"
+	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -31,4 +32,6 @@ func init() {
 	Router.POST("/api/memo/new", handler.Middleware(memo.CreateMemo, handler.MiddlewareConfig{Cors: true, JSON: true}))
 	Router.POST("/api/memo/update", handler.Middleware(memo.UpdateMemo, handler.MiddlewareConfig{Cors: true, JSON: true}))
 	Router.POST("/api/memo/delete", handler.Middleware(memo.DeleteMemo, handler.MiddlewareConfig{Cors: true, JSON: true}))
+
+	Router.NotFound = http.HandlerFunc(handler.NotFoundHandler)
 }
