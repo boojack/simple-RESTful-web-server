@@ -6,7 +6,6 @@ import (
 	"neosmemo/backend/handler"
 	"neosmemo/backend/helper"
 	"neosmemo/backend/model"
-	"neosmemo/backend/util"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -19,15 +18,9 @@ func GetAllMemos(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		panic("You have not sign in")
 	}
 
-	memos := []model.Memo{}
-	memo := model.Memo{}
+	memos, err := model.GetMemosByUserID(userID)
 
-	if rows, err := helper.DBService.Query("SELECT * FROM memos WHERE user_id = $1", userID); err == nil {
-		for rows.Next() {
-			rows.Scan(util.IterStructFieldAddr(&memo)...)
-			memos = append(memos, memo)
-		}
-	} else {
+	if err != nil {
 		panic("fetch failed, try later plz")
 	}
 
@@ -42,12 +35,9 @@ func GetAllMemos(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 // GetMemoByID do not need user session
 func GetMemoByID(w http.ResponseWriter, _ *http.Request, ps httprouter.Params) {
 	id := ps.ByName("id")
-	memo := model.Memo{}
+	memo, err := model.GetMemoByID(id)
 
-	row := helper.DBService.QueryRow("SELECT * FROM memos WHERE id = $1", id)
-	err := row.Scan(util.IterStructFieldAddr(&memo)...)
 	if err != nil {
-		// no rows in result set
 		fmt.Println(err.Error())
 	}
 
@@ -75,20 +65,9 @@ func CreateMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		panic("request data type error")
 	}
 
-	// TODO: need to polish the way to generate id
-	memo := model.Memo{
-		ID:        util.GenUUID(),
-		UserID:    userID,
-		Content:   t.Content,
-		CreatedAt: util.GetNowTime(),
-		UpdatedAt: util.GetNowTime(),
-	}
+	memo, err := model.CreateMemo(userID, t.Content)
 
-	sqlStatement := `
-		INSERT INTO memos (id, user_id, content, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)`
-
-	if _, err := helper.DBService.Exec(sqlStatement, util.IterStructFieldValue(&memo)...); err != nil {
+	if err != nil {
 		panic("create memo error")
 	}
 
@@ -116,13 +95,7 @@ func UpdateMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		panic("request data type error")
 	}
 
-	sqlStatement := `
-		UPDATE memos
-		SET content = $1, updated_at = $2
-		WHERE id = $3 AND user_id = $4
-	`
-	_, err := helper.DBService.Exec(sqlStatement, t.Content, util.GetNowTime(), t.ID, userID)
-	if err != nil {
+	if err := model.UpdateMemoByID(t.ID, t.Content, userID); err != nil {
 		panic("update memo error")
 	}
 
@@ -150,13 +123,7 @@ func DeleteMemo(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		panic("request data type error")
 	}
 
-	sqlStatement := `
-		DELETE FROM memos
-		WHERE id = $1 AND user_id = $2
-	`
-
-	_, err := helper.DBService.Exec(sqlStatement, t.ID, userID)
-	if err != nil {
+	if err := model.DeleteMemoByID(t.ID, userID); err != nil {
 		panic("delete memo error")
 	}
 
